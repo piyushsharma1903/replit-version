@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition Signup</title>
+    <style>
+        .container {
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+
+        .form {
+            background: #f5f5f5;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .camera-section {
+            margin: 2rem 0;
+            text-align: center;
+        }
+
+        .video-feed {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 4px;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+
+        #photoPreview {
+            display: none;
+            max-width: 300px;
+            margin: 1rem auto;
+            border-radius: 4px;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s ease;
+            margin: 0.5rem;
+        }
+
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .capture-btn {
+            background: #28a745;
+        }
+
+        .retake-btn {
+            background: #dc3545;
+        }
+
+        .permission-error {
+            color: #dc3545;
+            text-align: center;
+            padding: 1rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Event Registration</h1>
+        <form class="form" id="signupForm">
+            <div class="form-group">
+                <label for="name">Full Name:</label>
+                <input type="text" id="name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Phone:</label>
+                <input type="tel" id="phone" required>
+            </div>
+
+            <div class="camera-section">
+                <button type="button" id="startCamera">Open Camera</button>
+                <div class="permission-error" id="permissionError">
+                    Camera access denied. Please enable camera permissions.
+                </div>
+
+                <div id="cameraUI" style="display: none;">
+                    <video class="video-feed" id="videoFeed"></video>
+                    <button type="button" class="capture-btn" id="captureBtn">Capture Photo</button>
+                </div>
+
+                <img id="photoPreview" alt="Captured photo">
+                <button type="button" class="retake-btn" id="retakeBtn" style="display: none;">Retake Photo</button>
+            </div>
+
+            <button type="submit">Complete Registration</button>
+        </form>
+    </div>
+
+    <script>
+        const video = document.getElementById('videoFeed');
+        const startCameraBtn = document.getElementById('startCamera');
+        const captureBtn = document.getElementById('captureBtn');
+        const retakeBtn = document.getElementById('retakeBtn');
+        const photoPreview = document.getElementById('photoPreview');
+        const cameraUI = document.getElementById('cameraUI');
+        const permissionError = document.getElementById('permissionError');
+        let stream = null;
+
+        // Camera functionality
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                });
+
+                video.srcObject = stream;
+                permissionError.style.display = 'none';
+
+                video.onloadedmetadata = () => {
+                    video.play();
+                    cameraUI.style.display = 'block';
+                    startCameraBtn.style.display = 'none';
+                };
+            } catch (err) {
+                console.error('Camera error:', err);
+                permissionError.style.display = 'block';
+                startCameraBtn.style.disabled = true;
+            }
+        }
+
+        // Capture photo
+        function capturePhoto() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Stop camera stream
+            stream.getTracks().forEach(track => track.stop());
+
+            // Show preview
+            photoPreview.src = canvas.toDataURL('image/jpeg');
+            photoPreview.style.display = 'block';
+            cameraUI.style.display = 'none';
+            retakeBtn.style.display = 'block';
+        }
+
+        // Event listeners
+        startCameraBtn.addEventListener('click', startCamera);
+        captureBtn.addEventListener('click', capturePhoto);
+
+        retakeBtn.addEventListener('click', () => {
+            photoPreview.style.display = 'none';
+            retakeBtn.style.display = 'none';
+            startCamera();
+        });
+
+        // Form submission
+        document.getElementById('signupForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!photoPreview.src) {
+                alert('Please capture your photo first');
+                return;
+            }
+
+            const formData = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                photo: photoPreview.src.split(',')[1] // Base64 data
+            };
+
+            console.log('Form data:', formData);
+            alert('Registration submitted successfully!');
+
+            // Reset form
+            document.getElementById('signupForm').reset();
+            photoPreview.style.display = 'none';
+            retakeBtn.style.display = 'none';
+            startCameraBtn.style.display = 'block';
+        });
+    </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConcertTix - Registration</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .camera-section {
+            margin: 2rem 0;
+            text-align: center;
+        }
+
+        .video-feed {
+            width: 100%;
+            max-width: 400px;
+            border-radius: var(--border-radius);
+            transform: scaleX(-1); /* Mirror effect */
+            margin: 0 auto;
+            display: block;
+        }
+
+        #photoPreview {
+            display: none;
+            max-width: 300px;
+            margin: 1rem auto;
+            border-radius: var(--border-radius);
+            border: 3px solid var(--primary-color);
+        }
+
+        .capture-btn {
+            background-color: #28a745;
+        }
+
+        .retake-btn {
+            background-color: #dc3545;
+        }
+
+        .permission-error {
+            color: #dc3545;
+            text-align: center;
+            padding: 1rem;
+            display: none;
+            background-color: rgba(220, 53, 69, 0.1);
+            border-radius: var(--border-radius);
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-container">
+            <div class="logo">
+                <i class="fas fa-ticket-alt"></i>
+                <h1>ConcertTix</h1>
+            </div>
+            <div class="search-bar">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Search concerts...">
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="page-title">
+            <h2>Create Your Account</h2>
+        </div>
+
+        <div class="content-box">
+            <form class="profile-form" id="signupForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName">First Name</label>
+                        <input type="text" id="firstName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName">Last Name</label>
+                        <input type="text" id="lastName" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" id="phone" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm Password</label>
+                        <input type="password" id="confirmPassword" required>
+                    </div>
+                </div>
+                
+                <div class="form-group full-width">
+                    <h3><i class="fas fa-camera"></i> Face Authentication Setup</h3>
+                    <p>To enhance account security and simplify future purchases, we use face recognition technology. Please take a clear photo of your face that will be used for verification.</p>
+                </div>
+
+                <div class="camera-section">
+                    <button type="button" class="btn" id="startCamera"><i class="fas fa-camera"></i> Open Camera</button>
+                    <div class="permission-error" id="permissionError">
+                        <i class="fas fa-exclamation-triangle"></i> Camera access denied. Please enable camera permissions.
+                    </div>
+
+                    <div id="cameraUI" style="display: none;">
+                        <video class="video-feed" id="videoFeed"></video>
+                        <button type="button" class="btn capture-btn" id="captureBtn"><i class="fas fa-camera"></i> Capture Photo</button>
+                    </div>
+
+                    <img id="photoPreview" alt="Captured photo">
+                    <button type="button" class="btn retake-btn" id="retakeBtn" style="display: none;"><i class="fas fa-redo"></i> Retake Photo</button>
+                </div>
+
+                <div class="form-actions">
+                    <a href="home-page.html" class="btn btn-outline">Cancel</a>
+                    <button type="submit" class="save-btn">Create Account</button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <nav class="bottom-nav">
+        <a href="home-page.html" class="nav-item">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="dashboard-page.html" class="nav-item">
+            <i class="fas fa-th-large"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="marketplace.html" class="nav-item">
+            <i class="fas fa-shopping-cart"></i>
+            <span>Market</span>
+        </a>
+        <a href="profile-page.html" class="nav-item">
+            <i class="fas fa-user"></i>
+            <span>Profile</span>
+        </a>
+    </nav>
+
+    <script>
+        const video = document.getElementById('videoFeed');
+        const startCameraBtn = document.getElementById('startCamera');
+        const captureBtn = document.getElementById('captureBtn');
+        const retakeBtn = document.getElementById('retakeBtn');
+        const photoPreview = document.getElementById('photoPreview');
+        const cameraUI = document.getElementById('cameraUI');
+        const permissionError = document.getElementById('permissionError');
+        let stream = null;
+
+        // Camera functionality
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                });
+
+                video.srcObject = stream;
+                permissionError.style.display = 'none';
+
+                video.onloadedmetadata = () => {
+                    video.play();
+                    cameraUI.style.display = 'block';
+                    startCameraBtn.style.display = 'none';
+                };
+            } catch (err) {
+                console.error('Camera error:', err);
+                permissionError.style.display = 'block';
+                startCameraBtn.disabled = true;
+            }
+        }
+
+        // Capture photo
+        function capturePhoto() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Stop camera stream
+            stream.getTracks().forEach(track => track.stop());
+
+            // Show preview
+            photoPreview.src = canvas.toDataURL('image/jpeg');
+            photoPreview.style.display = 'block';
+            cameraUI.style.display = 'none';
+            retakeBtn.style.display = 'inline-block';
+        }
+
+        // Event listeners
+        startCameraBtn.addEventListener('click', startCamera);
+        captureBtn.addEventListener('click', capturePhoto);
+
+        retakeBtn.addEventListener('click', () => {
+            photoPreview.style.display = 'none';
+            retakeBtn.style.display = 'none';
+            startCamera();
+        });
+
+        // Form submission
+        document.getElementById('signupForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!photoPreview.src) {
+                alert('Please capture your photo first for face authentication');
+                return;
+            }
+
+            // Verify passwords match
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (password !== confirmPassword) {
+                alert('Passwords do not match');
+                return;
+            }
+
+            const formData = {
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                faceData: photoPreview.src.split(',')[1] // Base64 data
+            };
+
+            console.log('Registration data:', formData);
+            alert('Registration successful! Redirecting to login...');
+            
+            // Redirect to home page
+            window.location.href = 'home-page.html';
+        });
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>
